@@ -1,13 +1,12 @@
-
 package com.yash.walletengine.service;
 
+import com.yash.walletengine.exception.WalletNotFoundException;
 import com.yash.walletengine.dto.CreateWalletRequest;
 import com.yash.walletengine.dto.WalletResponse;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,7 +25,7 @@ public class WalletService {
     public WalletResponse getWallet(UUID id) {
         WalletResponse wallet = wallets.get(id);
         if (wallet == null) {
-            throw new NoSuchElementException("Wallet not found: " + id);
+            throw new WalletNotFoundException("Wallet with id " + id + " not found");
         }
         return wallet;
     }
