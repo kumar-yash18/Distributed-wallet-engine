@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/wallet_dev
+    username: dev_user
+    password: dev_pass
+
+app:
+  environment-label: "DEV PROFILE"

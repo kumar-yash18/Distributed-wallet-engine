@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: wallet-engine
+
+app:
+  environment-label: "BASE (no profile active)"

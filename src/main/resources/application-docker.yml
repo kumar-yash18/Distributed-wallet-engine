@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres-container:5432/wallet_docker
+    username: docker_user
+    password: docker_pass
+
+app:
+  environment-label: "DOCKER PROFILE"
