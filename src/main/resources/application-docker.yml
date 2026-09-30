@@ -1,8 +1,19 @@
+
 spring:
   datasource:
-    url: jdbc:postgresql://postgres-container:5432/wallet_docker
-    username: docker_user
-    password: docker_pass
+    url: jdbc:postgresql://postgres:5432/walletdb
+    username: wallet
+    password: wallet123
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
 
 app:
   environment-label: "DOCKER PROFILE"

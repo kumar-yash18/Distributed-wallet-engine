@@ -1,8 +1,17 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/wallet_dev
-    username: dev_user
-    password: dev_pass
+    url: jdbc:postgresql://localhost:5432/walletdb
+    username: wallet
+    password: wallet123
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
 
 app:
   environment-label: "DEV PROFILE"

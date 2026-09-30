@@ -1,13 +1,14 @@
-
 package com.yash.walletengine.controller;
 
 import com.yash.walletengine.dto.CreateWalletRequest;
+import com.yash.walletengine.dto.DepositRequest;
 import com.yash.walletengine.dto.WalletResponse;
 import com.yash.walletengine.service.WalletService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.UUID;
 
 @RestController
@@ -29,5 +30,11 @@ public class WalletController {
     @GetMapping("/{id}")
     public ResponseEntity<WalletResponse> getWallet(@PathVariable UUID id) {
         return ResponseEntity.ok(walletService.getWallet(id));
+    }
+
+    @PostMapping("/{id}/deposit")
+    public ResponseEntity<WalletResponse> deposit(@PathVariable UUID id,
+                                                  @Valid @RequestBody DepositRequest request) {
+        return ResponseEntity.ok(walletService.deposit(id, request));
     }
 }
