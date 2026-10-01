@@ -2,6 +2,8 @@ package com.yash.walletengine.service;
 
 import com.yash.walletengine.dto.CreateWalletRequest;
 import com.yash.walletengine.dto.DepositRequest;
+import com.yash.walletengine.dto.LedgerEntryResponse;
+import com.yash.walletengine.dto.PageResponse;
 import com.yash.walletengine.dto.WalletResponse;
 import com.yash.walletengine.entity.LedgerEntry;
 import com.yash.walletengine.entity.LedgerEntryType;
@@ -10,6 +12,8 @@ import com.yash.walletengine.exception.WalletNotFoundException;
 import com.yash.walletengine.repository.LedgerEntryRepository;
 import com.yash.walletengine.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +43,7 @@ public class WalletService {
         return toResponse(wallet);
     }
 
-    // DELIBERATELY NO @Transactional on this method (Day 8). Day 9 fixes this.
+    // DELIBERATELY NO @Transactional on this method. The transaction fix comes later in the roadmap.
     public WalletResponse deposit(UUID walletId, DepositRequest request) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException("Wallet with id " + walletId + " not found"));
@@ -59,12 +63,33 @@ public class WalletService {
 
         // ALSO UNSAFE: findById above and save() here are a read-modify-write with no lock.
         // Two concurrent deposits can read the same old balance and overwrite each other.
-        // The fix (pessimistic locking, SELECT ... FOR UPDATE) comes in a later day.
+        // The fix (pessimistic locking, SELECT ... FOR UPDATE) comes later.
 
         return toResponse(wallet);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<LedgerEntryResponse> getLedger(UUID walletId, Pageable pageable) {
+        if (!walletRepository.existsById(walletId)) {
+            throw new WalletNotFoundException("Wallet with id " + walletId + " not found");
+        }
+        Page<LedgerEntryResponse> page = ledgerEntryRepository
+                .findByWalletId(walletId, pageable)
+                .map(this::toLedgerResponse);
+        return PageResponse.from(page);
+    }
+
     private WalletResponse toResponse(Wallet wallet) {
         return new WalletResponse(wallet.getId(), wallet.getUserId(), wallet.getBalance());
+    }
+
+    private LedgerEntryResponse toLedgerResponse(LedgerEntry entry) {
+        return new LedgerEntryResponse(
+                entry.getId(),
+                entry.getWalletId(),
+                entry.getAmount(),
+                entry.getType(),
+                entry.getCreatedAt()
+        );
     }
 }

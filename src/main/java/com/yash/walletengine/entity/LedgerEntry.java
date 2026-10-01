@@ -14,7 +14,7 @@ import java.util.UUID;
 @Immutable
 @Table(
         name = "ledger_entries",
-        indexes = @Index(name = "idx_ledger_wallet_id", columnList = "wallet_id")
+        indexes = @Index(name = "idx_ledger_wallet_created", columnList = "wallet_id, created_at")
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

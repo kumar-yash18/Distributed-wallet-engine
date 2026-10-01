@@ -1,4 +1,12 @@
 package com.yash.walletengine.service;
+import com.yash.walletengine.dto.LedgerEntryResponse;
+import com.yash.walletengine.dto.PageResponse;
+import com.yash.walletengine.entity.LedgerEntryType;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 import com.yash.walletengine.dto.DepositRequest;
 import com.yash.walletengine.entity.LedgerEntry;
 import com.yash.walletengine.repository.LedgerEntryRepository;
@@ -101,5 +109,30 @@ class WalletServiceTest {
                 () -> walletService.deposit(id, new DepositRequest(new BigDecimal("100"))));
 
         verifyNoInteractions(ledgerEntryRepository);
+    }
+    @Test
+    void getLedger_unknownWallet_throwsAndQueriesNoEntries() {
+        UUID id = UUID.randomUUID();
+        when(walletRepository.existsById(id)).thenReturn(false);
+
+        assertThrows(WalletNotFoundException.class,
+                () -> walletService.getLedger(id, PageRequest.of(0, 20)));
+
+        verifyNoInteractions(ledgerEntryRepository);
+    }
+
+    @Test
+    void getLedger_existingWallet_returnsPage() {
+        UUID id = UUID.randomUUID();
+        LedgerEntry entry = new LedgerEntry(id, new BigDecimal("100"), LedgerEntryType.DEPOSIT);
+        Pageable pageable = PageRequest.of(0, 20);
+        when(walletRepository.existsById(id)).thenReturn(true);
+        when(ledgerEntryRepository.findByWalletId(id, pageable))
+                .thenReturn(new PageImpl<>(List.of(entry), pageable, 1));
+
+        PageResponse<LedgerEntryResponse> response = walletService.getLedger(id, pageable);
+
+        assertEquals(1, response.content().size());
+        assertEquals(1, response.totalElements());
     }
 }
