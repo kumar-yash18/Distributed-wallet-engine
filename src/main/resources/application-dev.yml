@@ -22,9 +22,7 @@ spring:
         default-page-size: 20
         max-page-size: 100
 
-logging:
-  level:
-    org.hibernate.orm.jdbc.bind: trace
+
 
 app:
   environment-label: "DEV PROFILE"

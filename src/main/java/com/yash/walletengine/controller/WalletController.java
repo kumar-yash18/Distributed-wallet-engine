@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.yash.walletengine.dto.WithdrawRequest;
 
 import java.util.UUID;
 
@@ -40,6 +41,11 @@ public class WalletController {
     public ResponseEntity<WalletResponse> deposit(@PathVariable UUID id,
                                                   @Valid @RequestBody DepositRequest request) {
         return ResponseEntity.ok(walletService.deposit(id, request));
+    }
+    @PostMapping("/{id}/withdraw")
+    public ResponseEntity<WalletResponse> withdraw(@PathVariable UUID id,
+                                                   @Valid @RequestBody WithdrawRequest request) {
+        return ResponseEntity.ok(walletService.withdraw(id, request));
     }
     @GetMapping("/{id}/ledger")
     public ResponseEntity<PageResponse<LedgerEntryResponse>> getLedger(

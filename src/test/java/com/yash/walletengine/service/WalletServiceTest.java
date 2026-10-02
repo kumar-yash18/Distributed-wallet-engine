@@ -5,6 +5,8 @@ import com.yash.walletengine.entity.LedgerEntryType;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import com.yash.walletengine.dto.WithdrawRequest;
+import com.yash.walletengine.exception.InsufficientBalanceException;
 
 import java.util.List;
 import com.yash.walletengine.dto.DepositRequest;
@@ -134,5 +136,35 @@ class WalletServiceTest {
 
         assertEquals(1, response.content().size());
         assertEquals(1, response.totalElements());
+    }
+    @Test
+    void withdraw_sufficientBalance_writesLedgerAndReducesBalance() {
+        UUID id = UUID.randomUUID();
+        Wallet wallet = new Wallet();
+        wallet.setId(id);
+        wallet.setUserId(1L);
+        wallet.setBalance(new BigDecimal("100"));
+        when(walletRepository.findById(id)).thenReturn(Optional.of(wallet));
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WalletResponse response = walletService.withdraw(id, new WithdrawRequest(new BigDecimal("30")));
+
+        assertEquals(0, new BigDecimal("70").compareTo(response.balance()));
+        verify(ledgerEntryRepository).save(any(LedgerEntry.class));
+    }
+
+    @Test
+    void withdraw_insufficientBalance_throwsAndWritesNothing() {
+        UUID id = UUID.randomUUID();
+        Wallet wallet = new Wallet();
+        wallet.setId(id);
+        wallet.setUserId(1L);
+        wallet.setBalance(new BigDecimal("10"));
+        when(walletRepository.findById(id)).thenReturn(Optional.of(wallet));
+
+        assertThrows(InsufficientBalanceException.class,
+                () -> walletService.withdraw(id, new WithdrawRequest(new BigDecimal("50"))));
+
+        verifyNoInteractions(ledgerEntryRepository);
     }
 }

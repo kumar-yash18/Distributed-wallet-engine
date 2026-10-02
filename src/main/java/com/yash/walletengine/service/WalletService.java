@@ -5,9 +5,11 @@ import com.yash.walletengine.dto.DepositRequest;
 import com.yash.walletengine.dto.LedgerEntryResponse;
 import com.yash.walletengine.dto.PageResponse;
 import com.yash.walletengine.dto.WalletResponse;
+import com.yash.walletengine.dto.WithdrawRequest;
 import com.yash.walletengine.entity.LedgerEntry;
 import com.yash.walletengine.entity.LedgerEntryType;
 import com.yash.walletengine.entity.Wallet;
+import com.yash.walletengine.exception.InsufficientBalanceException;
 import com.yash.walletengine.exception.WalletNotFoundException;
 import com.yash.walletengine.repository.LedgerEntryRepository;
 import com.yash.walletengine.repository.WalletRepository;
@@ -38,33 +40,45 @@ public class WalletService {
 
     @Transactional(readOnly = true)
     public WalletResponse getWallet(UUID id) {
-        Wallet wallet = walletRepository.findById(id)
-                .orElseThrow(() -> new WalletNotFoundException("Wallet with id " + id + " not found"));
-        return toResponse(wallet);
+        return toResponse(findWalletOrThrow(id));
     }
-
-    // DELIBERATELY NO @Transactional on this method. The transaction fix comes later in the roadmap.
+    @Transactional
     public WalletResponse deposit(UUID walletId, DepositRequest request) {
-        Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletNotFoundException("Wallet with id " + walletId + " not found"));
+        Wallet wallet = findWalletOrThrow(walletId);
 
-        // WRITE 1: ledger row. save() commits in its OWN mini-transaction, right now.
-        LedgerEntry entry = new LedgerEntry(walletId, request.amount(), LedgerEntryType.DEPOSIT);
-        ledgerEntryRepository.save(entry);
+        // WRITE 1: ledger row
+        ledgerEntryRepository.save(new LedgerEntry(walletId, request.amount(), LedgerEntryType.DEPOSIT));
 
-        // >>> TRANSACTION BOUNDARY NEEDED HERE <<<
-        // If the app crashes, or anything throws, between WRITE 1 and WRITE 2,
-        // the ledger says +amount but the balance never changed.
-        // Both writes must commit together or not at all.
 
-        // WRITE 2: balance update. A SEPARATE commit.
+
+        // WRITE 2: balance update
         wallet.setBalance(wallet.getBalance().add(request.amount()));
         walletRepository.save(wallet);
 
-        // ALSO UNSAFE: findById above and save() here are a read-modify-write with no lock.
-        // Two concurrent deposits can read the same old balance and overwrite each other.
-        // The fix (pessimistic locking, SELECT ... FOR UPDATE) comes later.
+        // NOTE: read-modify-write with no lock. Concurrent deposits can still overwrite
+        // each other even inside a transaction. Pessimistic locking fixes that later.
+        return toResponse(wallet);
+    }
+    @Transactional
+    public WalletResponse withdraw(UUID walletId, WithdrawRequest request) {
+        Wallet wallet = findWalletOrThrow(walletId);
 
+        if (wallet.getBalance().compareTo(request.amount()) < 0) {
+            throw new InsufficientBalanceException(
+                    "Wallet " + walletId + " has insufficient balance for withdrawal of " + request.amount());
+        }
+
+        // WRITE 1: ledger row
+        ledgerEntryRepository.save(new LedgerEntry(walletId, request.amount(), LedgerEntryType.WITHDRAWAL));
+
+
+
+        // WRITE 2: balance update
+        wallet.setBalance(wallet.getBalance().subtract(request.amount()));
+        walletRepository.save(wallet);
+
+        // NOTE: the balance check above is check-then-act with no lock; two concurrent
+        // withdrawals could both pass it. Pessimistic locking fixes that later.
         return toResponse(wallet);
     }
 
@@ -78,6 +92,14 @@ public class WalletService {
                 .map(this::toLedgerResponse);
         return PageResponse.from(page);
     }
+
+    private Wallet findWalletOrThrow(UUID walletId) {
+        return walletRepository.findById(walletId)
+                .orElseThrow(() -> new WalletNotFoundException("Wallet with id " + walletId + " not found"));
+    }
+
+    // TEMPORARY fault injection: delete after Day 10
+
 
     private WalletResponse toResponse(Wallet wallet) {
         return new WalletResponse(wallet.getId(), wallet.getUserId(), wallet.getBalance());
